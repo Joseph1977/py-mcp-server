@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+requests
+python-dotenv
+sse-starlette # Added for Server-Sent Events
+# Placeholder for the actual MCP Python SDK, e.g., modelcontextprotocol_sdk
+# pydantic # Often used with FastAPI for data validation
+
+# For specific services (add as needed)
+# google-api-python-client

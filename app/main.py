@@ -88,13 +88,15 @@ app = FastAPI(
 
 # Define FastAPI endpoints FIRST before mounting FastMCP
 @app.get("/health")
+@app.head("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint - supports both GET and HEAD requests for Docker health checks"""
     return {"status": "healthy", "server": "MCP Server with FastMCP", "version": "1.0.0"}
 
 @app.get("/ping")
+@app.head("/ping")
 async def ping():
-    """Basic ping endpoint"""
+    """Basic ping endpoint - supports both GET and HEAD requests"""
     return {"message": "pong"}
 
 @app.get("/info")

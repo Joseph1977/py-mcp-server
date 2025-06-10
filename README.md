@@ -198,9 +198,20 @@ Get comprehensive weather information for any location using the wttr.in API.
 
 ## 🐳 **Docker Deployment**
 
-### **Using Docker Compose (Recommended)**
+### **🚀 Optimized Docker Configuration**
+
+This project includes **two optimized Docker configurations**:
+
+| Configuration | Image Size | Use Case | Build Time |
+|---------------|------------|----------|------------|
+| **Standard** (`Dockerfile`) | 181MB | General development | ~45s |
+| **Alpine** (`Dockerfile.alpine`) | 111MB | **Production (Recommended)** | ~40s |
+
+**📦 Size Comparison**: Alpine version is **38.7% smaller** (70MB reduction)
+
+### **🎯 Production Deployment (Recommended)**
 ```bash
-# Build and start the container
+# Using optimized Alpine image with Docker Compose
 docker-compose up --build
 
 # Run in background (detached mode)
@@ -213,16 +224,75 @@ docker-compose logs -f
 docker-compose down
 ```
 
-### **Using Docker Directly**
+### **🛠️ Development Mode**
 ```bash
-# Build the image
-docker build -t py-mcp-server .
+# Start development container with hot reloading
+docker-compose --profile development up --build
 
-# Run the container
-docker run -p 8001:8001 --env-file .env py-mcp-server
+# This runs on port 8001 with source code mounting
 ```
 
-The server will be accessible at `http://localhost:8001`
+### **📊 Multi-Stage Builds**
+Both Dockerfiles use **multi-stage builds** for optimization:
+- **Builder stage**: Compiles dependencies in virtual environment
+- **Production stage**: Minimal runtime image with only necessary components
+- **Development stage**: Additional tools for debugging (Alpine only)
+
+### **🔐 Security Features**
+- ✅ **Non-root user** (mcpuser:1001) for security
+- ✅ **Minimal attack surface** with Alpine Linux
+- ✅ **Health checks** built into containers
+- ✅ **Resource limits** configured in docker-compose.yml
+
+### **Using Docker Directly**
+```bash
+# Build Alpine image (recommended for production)
+docker build -f Dockerfile.alpine -t py-mcp-server:alpine .
+
+# Build standard image
+docker build -t py-mcp-server:standard .
+
+# Run Alpine container
+docker run -p 8001:8001 --env-file .env py-mcp-server:alpine
+
+# Run with resource limits
+docker run -p 8001:8001 --env-file .env \
+  --memory=512m --cpus=1.0 \
+  py-mcp-server:alpine
+```
+
+### **🔧 Docker Configuration Options**
+
+#### **Environment Variables for Docker**
+```bash
+# Port configuration (original port 8001)
+MCP_SERVER_PORT=8001
+
+# Environment mode
+ENV=production
+
+# Resource optimization
+PYTHONDONTWRITEBYTECODE=1
+PYTHONUNBUFFERED=1
+```
+
+#### **Volume Mounts**
+```bash
+# Persistent logs
+./logs:/app/logs:rw
+
+# Development source mounting
+.:/app:rw  # Development only
+```
+
+### **🏗️ Build Targets**
+```bash
+# Production build (default)
+docker build -f Dockerfile.alpine --target production -t mcp:prod .
+
+# Development build with additional tools
+docker build -f Dockerfile.alpine --target development -t mcp:dev .
+```
 
 ## 🧪 **Testing the Server**
 

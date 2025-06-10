@@ -13,7 +13,7 @@ class Settings:
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     MCP_TRANSPORT_MODE: str = os.getenv("MCP_TRANSPORT_MODE", "http") # Default to http
     MCP_SERVER_HOST: str = os.getenv("MCP_SERVER_HOST", "0.0.0.0")
-    MCP_SERVER_PORT: int = int(os.getenv("MCP_SERVER_PORT", "8001")) # Changed default port to 8001
+    MCP_SERVER_PORT: int = int(os.getenv("MCP_SERVER_PORT", "8001")) # Original port 8001
 
     def __init__(self):
         logger.info("Initializing settings...")
@@ -39,17 +39,12 @@ elif log_level_setting == "TRACE":
     actual_log_level = 5  # TRACE level (often set to 5, as Uvicorn does)
     logging.addLevelName(actual_log_level, "TRACE")
     # Add a trace method to Logger instances if it doesn't exist
-    # and if the current logger is the root logger or a custom one that should have it.
-    # This is a common pattern but be mindful if other libraries expect specific logger classes.
     if not hasattr(logging.Logger, 'trace'):
         def trace(self, message, *args, **kws):
-            # self.isEnabledFor(actual_log_level) is implicitly checked by _log if level is set
             if self.isEnabledFor(actual_log_level):
                 self._log(actual_log_level, message, args, **kws)
         logging.Logger.trace = trace
 else:
-    # This case is unlikely if Settings class validates or defaults LOG_LEVEL,
-    # but as a fallback:
     logging.warning(f"Unknown LOG_LEVEL '{settings.LOG_LEVEL}'. Defaulting to INFO.")
     actual_log_level = logging.INFO
 

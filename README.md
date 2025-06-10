@@ -432,7 +432,7 @@ curl http://localhost:8001/info
 **Response:**
 ```json
 {
-  "name": "MyMCPApplication",
+  "name": "Benraz-MCP-Server",
   "description": "An MCP server using FastMCP",
   "transport_mode": "http",
   "endpoints": {

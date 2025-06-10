@@ -13,7 +13,7 @@ from mcp.server.fastmcp import FastMCP
 logger = logging.getLogger(__name__)
 
 mcp_server = FastMCP(
-    name="MyMCPApplication",
+    name="Benraz-MCP-Server",
     description="An MCP server using FastMCP"
 )
 
@@ -30,14 +30,15 @@ async def weather(location: str) -> str:
     return str(result)
 
 @mcp_server.tool()
-async def brave_search_tool(query: str) -> str:
+async def brave_search_tool(query: str, count: int = 10) -> str:
     """Search the web with Brave Search.
     
     Args:
         query: The search query.
+        count: Number of search results to return (default: 10, max: 20).
     """
-    logger.info(f"Executing Brave search tool for query: {query}")
-    result = await search_brave(query)
+    logger.info(f"Executing Brave search tool for query: {query} with count: {count}")
+    result = await search_brave(query, count)
     logger.debug(f"Brave search result: {result}")
     return str(result)
 
@@ -85,33 +86,34 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Mount the FastMCP application at the root
-app.mount("/", mcp_server.streamable_http_app())
-
+# Define FastAPI endpoints FIRST before mounting FastMCP
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "server": "MCP Server with FastMCP", "version": "1.0.0"}
 
+@app.get("/ping")
+async def ping():
+    """Basic ping endpoint"""
+    return {"message": "pong"}
+
 @app.get("/info")
 async def server_info():
     """Server information endpoint"""
     return {
-        "name": "MyMCPApplication",
+        "name": "Benraz-MCP-Server",
         "description": "An MCP server using FastMCP",
         "transport_mode": app_settings_instance.MCP_TRANSPORT_MODE,
         "endpoints": {
-            "mcp": "/mcp",
             "health": "/health",
-            "info": "/info"
+            "info": "/info",
+            "ping": "/ping"
         },
         "tools": ["weather", "brave_search_tool", "google_search_tool"]
     }
 
-@app.get("/")
-async def root():
-    logger.info("Root path '/' accessed.")
-    return {"message": "MCP Server is running. Access MCP functionalities at /mcp"}
+# Mount the FastMCP application at ROOT to preserve MCP protocol compatibility
+app.mount("/", mcp_server.streamable_http_app())
 
 if __name__ == "__main__":
     # This block is primarily for stdio mode or direct execution.

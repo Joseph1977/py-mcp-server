@@ -192,3 +192,8 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+PROJECT_OPTIMIZATION_COMPLETE.md
+DOCKER_OPTIMIZATION_REPORT.md
+PORT_CONFIGURATION_FIXED.md
+DOCUMENTATION_PORT_ALIGNMENT_COMPLETE.md
+DOCKER_COMPOSE_CHECK_REPORT.md

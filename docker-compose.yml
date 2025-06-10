@@ -1,8 +1,72 @@
 version: '3.8'
+
 services:
+  # Production service using optimized Alpine image
   mcp_server:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.alpine  # Use Alpine for production
+      target: production
+    image: py-mcp-server:alpine-latest
+    container_name: py-mcp-server
     ports:
-      - "8000:8000"
+      - "8001:8001"  # Original port 8001
     env_file:
       - .env
+    environment:
+      - ENV=production
+      - LOG_LEVEL=info
+      - MCP_TRANSPORT_MODE=http
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8001
+    volumes:
+      - ./logs:/app/logs:rw  # Mount logs directory for persistence
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+    networks:
+      - mcp-network
+    labels:
+      - "com.docker.compose.service=mcp-server"
+      - "org.opencontainers.image.description=Python MCP Server"
+      - "org.opencontainers.image.version=1.0.0"
+
+  # Development service with hot reloading
+  mcp_server_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.alpine
+      target: production  # Can be changed to development stage if added    image: py-mcp-server:alpine-dev
+    container_name: py-mcp-server-dev
+    ports:
+      - "8002:8001"  # Different port for development (host:container)
+    environment:
+      - ENV=development
+      - LOG_LEVEL=debug
+      - MCP_TRANSPORT_MODE=http
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8001
+    volumes:
+      - .:/app:rw  # Mount source code for development
+      - ./logs:/app/logs:rw
+    command: uvicorn run:app --host 0.0.0.0 --port 8001 --reload
+    networks:
+      - mcp-network
+    profiles:
+      - development
+
+networks:
+  mcp-network:
+    driver: bridge

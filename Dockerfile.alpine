@@ -1,0 +1,108 @@
+# Production-optimized Dockerfile with minimal dependencies
+FROM python:3.11-alpine as builder
+
+# Add metadata
+LABEL org.opencontainers.image.description="Python MCP Server - Builder Stage"
+LABEL org.opencontainers.image.source="https://github.com/your-org/py-mcp-server"
+
+# Install build dependencies
+RUN apk add --no-cache gcc musl-dev libffi-dev
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy and install Python dependencies
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Development stage with additional tools
+FROM python:3.11-alpine as development
+
+# Add metadata
+LABEL org.opencontainers.image.description="Python MCP Server - Development"
+LABEL org.opencontainers.image.version="1.0.0-dev"
+
+# Install runtime and development dependencies
+RUN apk add --no-cache curl wget
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    ENV=development
+
+# Create non-root user
+RUN addgroup -g 1001 mcpuser && \
+    adduser -D -u 1001 -G mcpuser mcpuser
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Set working directory and copy app
+WORKDIR /app
+COPY --chown=mcpuser:mcpuser . .
+
+# Create logs directory
+RUN mkdir -p /app/logs && \
+    chown -R mcpuser:mcpuser /app
+
+# Switch to non-root user
+USER mcpuser
+
+# Expose port
+EXPOSE 8001
+
+# Health check using wget (more reliable than curl in Alpine)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8001/health || exit 1
+
+# Run with hot reload for development
+CMD ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+
+# Production stage with minimal Alpine image
+FROM python:3.11-alpine as production
+
+# Add metadata
+LABEL org.opencontainers.image.description="Python MCP Server - Production"
+LABEL org.opencontainers.image.vendor="Your Organization"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# Install runtime dependencies only (wget for health checks)
+RUN apk add --no-cache wget
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    ENV=production
+
+# Create non-root user
+RUN addgroup -g 1001 mcpuser && \
+    adduser -D -u 1001 -G mcpuser mcpuser
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Set working directory and copy app
+WORKDIR /app
+COPY --chown=mcpuser:mcpuser . .
+
+# Create logs directory
+RUN mkdir -p /app/logs && \
+    chown -R mcpuser:mcpuser /app
+
+# Switch to non-root user
+USER mcpuser
+
+# Expose port
+EXPOSE 8001
+
+# Health check using wget (more reliable in Alpine)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8001/health || exit 1
+
+# Run the application
+CMD ["python", "run.py"]

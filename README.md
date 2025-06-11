@@ -64,9 +64,11 @@ py-mcp-server/
 ├── .gitignore                     # Git ignore patterns
 ├── docker-compose.yml             # Docker Compose configuration
 ├── Dockerfile                     # Docker build configuration
+├── get_mcp_tools_cli.ps1         # PowerShell MCP client (Windows)
+├── mcp-flow.md                   # MCP protocol flow documentation
 ├── requirements.txt               # Python dependencies
 ├── run.py                         # Server startup script
-├── test_mcp_client.py            # MCP client for testing
+├── test_mcp_client.py            # Python MCP client for testing
 └── README.md                      # This documentation
 ```
 
@@ -296,15 +298,34 @@ docker build -f Dockerfile.alpine --target development -t mcp:dev .
 
 ## 🧪 **Testing the Server**
 
-### **Using the Included Test Client**
+### **Using the Included Test Clients**
+
+#### **Python MCP Client** *(Recommended)*
 ```bash
-# Test weather tool (works without API keys)
+# Test all tools with comprehensive output (works without API keys)
 python test_mcp_client.py
 
 # Expected output:
 # Connected to MCP server successfully!
 # Available tools: ['weather', 'brave_search_tool', 'google_search_tool']
 # Weather result: [Detailed weather information for San Francisco]
+```
+
+#### **PowerShell MCP Client** *(Windows)*
+```powershell
+# Get MCP tools list using PowerShell (Windows users)
+powershell -ExecutionPolicy Bypass -File "get_mcp_tools_cli.ps1"
+
+# Expected output:
+# === MCP PowerShell Client (CLI-based) ===
+# MCP TOOLS LIST:
+# Found 3 tools:
+# 1. weather
+#    Description: Get the current weather for a location...
+# 2. brave_search_tool
+#    Description: Search the web with Brave Search...
+# 3. google_search_tool
+#    Description: Search the web with Google Search...
 ```
 
 ### **Manual Testing with curl**
@@ -315,10 +336,8 @@ curl http://localhost:8001/health
 # Get server information
 curl http://localhost:8001/info
 
-# Test MCP tool discovery
-curl -X POST http://localhost:8001/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"method": "tools/list"}'
+# Note: Direct MCP protocol testing requires proper SSE handling
+# Use the Python or PowerShell clients above for MCP protocol testing
 ```
 
 ### **Expected Server Logs**

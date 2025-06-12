@@ -80,29 +80,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     logger.info("FastMCP session manager stopped")
 
-app = FastAPI(
-    title="MCP Server with FastMCP", 
-    redirect_slashes=False,
-    lifespan=lifespan
-)
+# Use FastMCP's streamable HTTP app as the primary application
+app = mcp_server.streamable_http_app()
 
-# Define FastAPI endpoints FIRST before mounting FastMCP
-@app.get("/health")
-@app.head("/health")
-async def health_check():
-    """Health check endpoint - supports both GET and HEAD requests for Docker health checks"""
-    return {"status": "healthy", "server": "MCP Server with FastMCP", "version": "1.0.0"}
+# FastMCP apps are Starlette apps, so we need to add routes differently
+from starlette.routing import Route
+from starlette.responses import JSONResponse
 
-@app.get("/ping")
-@app.head("/ping")
-async def ping():
-    """Basic ping endpoint - supports both GET and HEAD requests"""
-    return {"message": "pong"}
+async def health_check(request):
+    """Health check endpoint"""
+    return JSONResponse({"status": "healthy", "server": "MCP Server with FastMCP", "version": "1.0.0"})
 
-@app.get("/info")
-async def server_info():
+async def ping(request):
+    """Basic ping endpoint"""
+    return JSONResponse({"message": "pong"})
+
+async def server_info(request):
     """Server information endpoint"""
-    return {
+    return JSONResponse({
         "name": "Benraz-MCP-Server",
         "description": "An MCP server using FastMCP",
         "transport_mode": app_settings_instance.MCP_TRANSPORT_MODE,
@@ -112,10 +107,14 @@ async def server_info():
             "ping": "/ping"
         },
         "tools": ["weather", "brave_search_tool", "google_search_tool"]
-    }
+    })
 
-# Mount the FastMCP application at ROOT to preserve MCP protocol compatibility
-app.mount("/", mcp_server.streamable_http_app())
+# Add our custom routes to the FastMCP app
+app.routes.extend([
+    Route("/health", health_check, methods=["GET", "HEAD"]),
+    Route("/ping", ping, methods=["GET", "HEAD"]),
+    Route("/info", server_info, methods=["GET"])
+])
 
 if __name__ == "__main__":
     # This block is primarily for stdio mode or direct execution.

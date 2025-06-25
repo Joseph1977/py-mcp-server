@@ -30,37 +30,39 @@ async def weather(location: str) -> str:
     logger.debug(f"Weather tool result: {result}")
     return str(result)
 
-@mcp_server.tool()
-async def brave_search_tool(query: str, count: int = 10, sites: Optional[List[str]] = None) -> str:
-    """Search the web with Brave Search. Optionally restrict to a list of websites.
-    
-    Args:
-        query: The search query.
-        count: Number of search results to return (default: 10, max: 20).
-        sites (optional): List of website domains/URLs to restrict the search to. If not provided, search is not restricted.
-    Example:
-        brave_search_tool(query="AI news", sites=["wired.com", "arstechnica.com"])
-    """
-    logger.info(f"Executing Brave search tool for query: {query}, count: {count}, sites: {sites}")
-    result = await search_brave(query, count, sites)
-    logger.debug(f"Brave search result: {result}")
-    return str(result)
+if app_settings_instance.BRAVE_API_KEY:
+    @mcp_server.tool()
+    async def brave_search_tool(query: str, count: int = 10, sites: Optional[List[str]] = None) -> str:
+        """Search the web with Brave Search. Optionally restrict to a list of websites.
+        
+        Args:
+            query: The search query.
+            count: Number of search results to return (default: 10, max: 20).
+            sites (optional): List of website domains/URLs to restrict the search to. If not provided, search is not restricted.
+        Example:
+            brave_search_tool(query="AI news", sites=["wired.com", "arstechnica.com"])
+        """
+        logger.info(f"Executing Brave search tool for query: {query}, count: {count}, sites: {sites}")
+        result = await search_brave(query, count, sites)
+        logger.debug(f"Brave search result: {result}")
+        return str(result)
 
-@mcp_server.tool()
-async def google_search_tool(query: str, count: int = 10, sites: Optional[List[str]] = None) -> str:
-    """Search the web with Google Search. Optionally restrict to a list of websites.
-    
-    Args:
-        query: The search query.
-        count: Number of search results to return (default: 10, max: 10).
-        sites (optional): List of website domains/URLs to restrict the search to. If not provided, search is not restricted.
-    Example:
-        google_search_tool(query="AI news", sites=["wired.com", "arstechnica.com"])
-    """
-    logger.info(f"Executing Google search tool for query: {query}, count: {count}, sites: {sites}")
-    result = await search_google(query, count, sites)
-    logger.debug(f"Google search result: {result}")
-    return str(result)
+if app_settings_instance.GOOGLE_API_KEY and app_settings_instance.GOOGLE_CSE_ID:
+    @mcp_server.tool()
+    async def google_search_tool(query: str, count: int = 10, sites: Optional[List[str]] = None) -> str:
+        """Search the web with Google Search. Optionally restrict to a list of websites.
+        
+        Args:
+            query: The search query.
+            count: Number of search results to return (default: 10, max: 10).
+            sites (optional): List of website domains/URLs to restrict the search to. If not provided, search is not restricted.
+        Example:
+            google_search_tool(query="AI news", sites=["wired.com", "arstechnica.com"])
+        """
+        logger.info(f"Executing Google search tool for query: {query}, count: {count}, sites: {sites}")
+        result = await search_google(query, count, sites)
+        logger.debug(f"Google search result: {result}")
+        return str(result)
 
 # FastAPI lifespan to manage FastMCP session manager
 @contextlib.asynccontextmanager
@@ -84,6 +86,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.info(f"  Route: Path='{route_entry.path}', Name='{route_entry.name if hasattr(route_entry, 'name') else 'N/A'}', Methods={methods_str}")
             elif isinstance(route_entry, Mount):
                 logger.info(f"  Mount: Path='{route_entry.path}', AppName='{route_entry.name if hasattr(route_entry, 'name') else 'N/A'}'")
+        
+        logger.info("Loaded settings with non-empty values:")
+        for k, v in app_settings_instance.env_vars.items():
+            if v:
+                logger.info(f"  {k} = {v}")
         
         yield
     logger.info("FastMCP session manager stopped")

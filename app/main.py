@@ -8,6 +8,7 @@ from app.config.config import settings as app_settings_instance
 from app.tools.weather import get_weather
 from app.tools.web_search import search_brave, search_google
 from mcp.server.fastmcp import FastMCP
+from typing import List, Optional
 
 # Logging is now configured in app.config.config
 logger = logging.getLogger(__name__)
@@ -29,30 +30,39 @@ async def weather(location: str) -> str:
     logger.debug(f"Weather tool result: {result}")
     return str(result)
 
-@mcp_server.tool()
-async def brave_search_tool(query: str, count: int = 10) -> str:
-    """Search the web with Brave Search.
-    
-    Args:
-        query: The search query.
-        count: Number of search results to return (default: 10, max: 20).
-    """
-    logger.info(f"Executing Brave search tool for query: {query} with count: {count}")
-    result = await search_brave(query, count)
-    logger.debug(f"Brave search result: {result}")
-    return str(result)
+if app_settings_instance.BRAVE_API_KEY:
+    @mcp_server.tool()
+    async def brave_search_tool(query: str, count: int = 10, sites: Optional[List[str]] = None) -> str:
+        """Search the web with Brave Search. Optionally restrict to a list of websites.
+        
+        Args:
+            query: The search query.
+            count: Number of search results to return (default: 10, max: 20).
+            sites (optional): List of website domains/URLs to restrict the search to. If not provided, search is not restricted.
+        Example:
+            brave_search_tool(query="AI news", sites=["wired.com", "arstechnica.com"])
+        """
+        logger.info(f"Executing Brave search tool for query: {query}, count: {count}, sites: {sites}")
+        result = await search_brave(query, count, sites)
+        logger.debug(f"Brave search result: {result}")
+        return str(result)
 
-@mcp_server.tool()
-async def google_search_tool(query: str) -> str:
-    """Search the web with Google Search.
-    
-    Args:
-        query: The search query.
-    """
-    logger.info(f"Executing Google search tool for query: {query}")
-    result = await search_google(query)
-    logger.debug(f"Google search result: {result}")
-    return str(result)
+if app_settings_instance.GOOGLE_API_KEY and app_settings_instance.GOOGLE_CSE_ID:
+    @mcp_server.tool()
+    async def google_search_tool(query: str, count: int = 10, sites: Optional[List[str]] = None) -> str:
+        """Search the web with Google Search. Optionally restrict to a list of websites.
+        
+        Args:
+            query: The search query.
+            count: Number of search results to return (default: 10, max: 10).
+            sites (optional): List of website domains/URLs to restrict the search to. If not provided, search is not restricted.
+        Example:
+            google_search_tool(query="AI news", sites=["wired.com", "arstechnica.com"])
+        """
+        logger.info(f"Executing Google search tool for query: {query}, count: {count}, sites: {sites}")
+        result = await search_google(query, count, sites)
+        logger.debug(f"Google search result: {result}")
+        return str(result)
 
 # FastAPI lifespan to manage FastMCP session manager
 @contextlib.asynccontextmanager
@@ -77,32 +87,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             elif isinstance(route_entry, Mount):
                 logger.info(f"  Mount: Path='{route_entry.path}', AppName='{route_entry.name if hasattr(route_entry, 'name') else 'N/A'}'")
         
+        logger.info("Loaded settings with non-empty values:")
+        for k, v in app_settings_instance.env_vars.items():
+            if v:
+                logger.info(f"  {k} = {v}")
+        
         yield
     logger.info("FastMCP session manager stopped")
 
-app = FastAPI(
-    title="MCP Server with FastMCP", 
-    redirect_slashes=False,
-    lifespan=lifespan
-)
+# Use FastMCP's streamable HTTP app as the primary application
+app = mcp_server.streamable_http_app()
 
-# Define FastAPI endpoints FIRST before mounting FastMCP
-@app.get("/health")
-@app.head("/health")
-async def health_check():
-    """Health check endpoint - supports both GET and HEAD requests for Docker health checks"""
-    return {"status": "healthy", "server": "MCP Server with FastMCP", "version": "1.0.0"}
+# FastMCP apps are Starlette apps, so we need to add routes differently
+from starlette.routing import Route
+from starlette.responses import JSONResponse
 
-@app.get("/ping")
-@app.head("/ping")
-async def ping():
-    """Basic ping endpoint - supports both GET and HEAD requests"""
-    return {"message": "pong"}
+async def health_check(request):
+    """Health check endpoint"""
+    return JSONResponse({"status": "healthy", "server": "MCP Server with FastMCP", "version": "1.0.0"})
 
-@app.get("/info")
-async def server_info():
+async def ping(request):
+    """Basic ping endpoint"""
+    return JSONResponse({"message": "pong"})
+
+async def server_info(request):
     """Server information endpoint"""
-    return {
+    return JSONResponse({
         "name": "Benraz-MCP-Server",
         "description": "An MCP server using FastMCP",
         "transport_mode": app_settings_instance.MCP_TRANSPORT_MODE,
@@ -112,10 +122,14 @@ async def server_info():
             "ping": "/ping"
         },
         "tools": ["weather", "brave_search_tool", "google_search_tool"]
-    }
+    })
 
-# Mount the FastMCP application at ROOT to preserve MCP protocol compatibility
-app.mount("/", mcp_server.streamable_http_app())
+# Add our custom routes to the FastMCP app
+app.routes.extend([
+    Route("/health", health_check, methods=["GET", "HEAD"]),
+    Route("/ping", ping, methods=["GET", "HEAD"]),
+    Route("/info", server_info, methods=["GET"])
+])
 
 if __name__ == "__main__":
     # This block is primarily for stdio mode or direct execution.

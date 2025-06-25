@@ -39,12 +39,31 @@ async def test_mcp_server():
                         print(f"❌ Weather tool error: {e}")
                     
                     # Test search tool
-                    print(f"\n🔍 Testing brave search tool...")
+                    print(f"\n🔍 Testing Google search tool...")
+                    try:
+                        result = await session.call_tool("google_search_tool", {"query": "Joseph Benraz, Israel"})
+                        print(f"✅ Search tool result: {result.content[0].text[:200] if result.content else 'No content'}...")
+                    except Exception as e:
+                        print(f"❌ Search tool error: {e}")
+                    
+                    # Test search tool
+                    print(f"\n🔍 Testing Brave search tool...")
                     try:
                         result = await session.call_tool("brave_search_tool", {"query": "MCP Model Context Protocol"})
                         print(f"✅ Search tool result: {result.content[0].text[:200] if result.content else 'No content'}...")
                     except Exception as e:
                         print(f"❌ Search tool error: {e}")
+                    
+                    # Test Google search tool with site restriction
+                    print(f"\n🔍 Testing Google search tool with site restriction...")
+                    try:
+                        result = await session.call_tool("google_search_tool", {
+                            "query": "Joseph Benraz, Israel",
+                            "sites": ["en.wikipedia.org", "timesofisrael.com", "linkedin.com", "x.com"]
+                        })
+                        print(f"✅ Search tool (site-restricted) result: {result.content[0].text[:200] if result.content else 'No content'}...")
+                    except Exception as e:
+                        print(f"❌ Search tool (site-restricted) error: {e}")
                 
                 # List available resources
                 print(f"\n📚 Listing available resources...")

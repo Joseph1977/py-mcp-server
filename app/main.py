@@ -31,15 +31,18 @@ async def weather(location: str) -> str:
     return str(result)
 
 @mcp_server.tool()
-async def brave_search_tool(query: str, count: int = 10) -> str:
-    """Search the web with Brave Search.
+async def brave_search_tool(query: str, count: int = 10, sites: Optional[List[str]] = None) -> str:
+    """Search the web with Brave Search. Optionally restrict to a list of websites.
     
     Args:
         query: The search query.
         count: Number of search results to return (default: 10, max: 20).
+        sites (optional): List of website domains/URLs to restrict the search to. If not provided, search is not restricted.
+    Example:
+        brave_search_tool(query="AI news", sites=["wired.com", "arstechnica.com"])
     """
-    logger.info(f"Executing Brave search tool for query: {query} with count: {count}")
-    result = await search_brave(query, count)
+    logger.info(f"Executing Brave search tool for query: {query}, count: {count}, sites: {sites}")
+    result = await search_brave(query, count, sites)
     logger.debug(f"Brave search result: {result}")
     return str(result)
 

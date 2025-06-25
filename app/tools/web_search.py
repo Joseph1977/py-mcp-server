@@ -7,9 +7,9 @@ logger = logging.getLogger(__name__)
 
 # Note: logging.basicConfig is removed as it's handled in config.py
 
-async def search_brave(query: str, count: int = 10):
-    """Search using Brave Search API - matches TypeScript implementation"""
-    logger.info(f"Brave Search request for query: '{query}' with count: {count}")
+async def search_brave(query: str, count: int = 10, sites: Optional[List[str]] = None):
+    """Search using Brave Search API. Optionally restrict to a list of sites."""
+    logger.info(f"Brave Search request for query: '{query}' with count: {count} and sites: {sites}")
     
     if not query:
         logger.warning("Brave Search: Query parameter is missing.")
@@ -17,6 +17,11 @@ async def search_brave(query: str, count: int = 10):
     if not settings.BRAVE_API_KEY:
         logger.error("Brave Search: BRAVE_API_KEY is not configured.")
         return {"error": "Brave Search API key is not configured."}
+
+    # If sites are provided, add site restriction to the query
+    if sites:
+        site_query = " OR ".join([f"site:{site}" for site in sites])
+        query = f"{query} {site_query}"
 
     # Use proper URL encoding and count parameter like TypeScript version
     import urllib.parse

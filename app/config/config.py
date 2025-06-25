@@ -46,6 +46,8 @@ class Settings:
             logger.warning("BRAVE_API_KEY is not set.")
         if not self.get('GOOGLE_API_KEY'):
             logger.warning("GOOGLE_API_KEY is not set.")
+        if not self.get('GOOGLE_CSE_ID'):
+            logger.warning("GOOGLE_CSE_ID is not set.")
     
     def __getitem__(self, key):
         """Allow settings['KEY'] syntax"""
@@ -67,6 +69,10 @@ class Settings:
     @property
     def GOOGLE_API_KEY(self):
         return self.get('GOOGLE_API_KEY', '')
+    
+    @property
+    def GOOGLE_CSE_ID(self):
+        return self.get('GOOGLE_CSE_ID', '')
     
     @property
     def LOG_LEVEL(self):

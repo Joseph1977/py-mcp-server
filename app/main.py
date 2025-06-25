@@ -8,6 +8,7 @@ from app.config.config import settings as app_settings_instance
 from app.tools.weather import get_weather
 from app.tools.web_search import search_brave, search_google
 from mcp.server.fastmcp import FastMCP
+from typing import List, Optional
 
 # Logging is now configured in app.config.config
 logger = logging.getLogger(__name__)
@@ -43,14 +44,18 @@ async def brave_search_tool(query: str, count: int = 10) -> str:
     return str(result)
 
 @mcp_server.tool()
-async def google_search_tool(query: str) -> str:
-    """Search the web with Google Search.
+async def google_search_tool(query: str, count: int = 10, sites: Optional[List[str]] = None) -> str:
+    """Search the web with Google Search. Optionally restrict to a list of websites.
     
     Args:
         query: The search query.
+        count: Number of search results to return (default: 10, max: 10).
+        sites (optional): List of website domains/URLs to restrict the search to. If not provided, search is not restricted.
+    Example:
+        google_search_tool(query="AI news", sites=["wired.com", "arstechnica.com"])
     """
-    logger.info(f"Executing Google search tool for query: {query}")
-    result = await search_google(query)
+    logger.info(f"Executing Google search tool for query: {query}, count: {count}, sites: {sites}")
+    result = await search_google(query, count, sites)
     logger.debug(f"Google search result: {result}")
     return str(result)
 

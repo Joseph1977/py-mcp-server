@@ -1,6 +1,7 @@
 import logging
 import httpx  # Using httpx for async requests
 from app.config.config import settings
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ async def search_brave(query: str, count: int = 10):
             logger.error(f"Brave Search: Unexpected error for '{query}': {e}")
             return {"error": f"Brave Search unexpected error: {e}"}
 
-async def search_google(query: str, count: int = 10, sites: list[str] = None):
+async def search_google(query: str, count: int = 10, sites: Optional[List[str]] = None):
     """Search using Google Custom Search JSON API. Optionally restrict to a list of sites."""
     logger.info(f"Google Search request for query: '{query}' with count: {count} and sites: {sites}")
     

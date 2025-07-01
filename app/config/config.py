@@ -53,7 +53,7 @@ else:
 class Settings:
     def __init__(self):
         logger.info("Initializing settings constructor...")
-          # Load ALL environment variables dynamically
+        # Load ALL environment variables dynamically
         self.env_vars = dict(os.environ)
         logger.info("Initializing settings with all environment variables...")
         

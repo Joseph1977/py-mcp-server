@@ -31,7 +31,8 @@ A fully functional **Model Context Protocol (MCP) server** built with Python and
 - **🌤️ Weather Tool**: Real-time weather data from wttr.in (no API key required)
 - **🔍 Brave Search**: Web search via Brave Search API (API key required)
 - **🔎 Google Search**: Web search via Google Custom Search (API key required)
-- **📊 System Info**: Server health and information endpoints
+- **� File Watcher**: Real-time file system monitoring with SSE notifications
+- **�📊 System Info**: Server health and information endpoints
 
 ### **Production Ready**
 - **Auto-reload Development**: Hot reloading during development
@@ -40,6 +41,8 @@ A fully functional **Model Context Protocol (MCP) server** built with Python and
 - **Configuration Management**: Environment-based configuration
 - **Docker Support**: Complete containerization with Docker Compose
 - **Health Monitoring**: Built-in health check and server info endpoints
+
+For a complete technical overview, see the [Project Overview](Docs/PROJECT_OVERVIEW.md) document.
 
 ## 📁 **Project Structure**
 
@@ -57,7 +60,9 @@ py-mcp-server/
 │   ├── tools/                     # Tool implementations
 │   │   ├── __init__.py
 │   │   ├── weather.py             # Weather tool (wttr.in API)
-│   │   └── web_search.py          # Brave/Google search tools
+│   │   ├── web_search.py          # Brave/Google search tools
+│   │   ├── file_watcher.py        # File system monitoring core
+│   │   └── file_watcher_sse.py    # SSE integration for file events
 │   └── transports/                # Transport layer (future expansion)
 │       └── __init__.py
 ├── .env.example                   # Environment configuration template
@@ -188,6 +193,64 @@ Get comprehensive weather information for any location using the wttr.in API.
 
 **Note:** Search tools require valid API keys in your `.env` file to function properly.
 
+### **📁 File Watcher Tools** *(Real-time File Monitoring)*
+
+Monitor file system changes in real-time with comprehensive filtering and SSE notifications.
+
+**Key Features:**
+- ✅ **Real-time Monitoring** - Instant file change notifications
+- ✅ **Pattern Filtering** - Include/exclude patterns for targeted monitoring
+- ✅ **SSE Notifications** - Live updates via Server-Sent Events
+- ✅ **Recursive Watching** - Monitor directories and subdirectories
+- ✅ **Multi-format Support** - Watch specific file types or all changes
+
+#### **Create File Watcher**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "create_watcher",
+    "arguments": {
+      "watcher_id": "project_watcher",
+      "watch_path": "/path/to/project",
+      "file_patterns": ["*.py", "*.js", "*.ts"],
+      "exclude_patterns": ["__pycache__", "*.pyc", "node_modules"],
+      "recursive": true,
+      "auto_start": true
+    }
+  }
+}
+```
+
+#### **Other File Watcher Tools**
+- `start_watcher_tool` - Start a stopped watcher
+- `stop_watcher_tool` - Stop a running watcher
+- `remove_watcher_tool` - Remove a watcher completely
+- `list_watchers_tool` - List all watchers and their status
+- `get_watcher_status_tool` - Get detailed watcher information
+
+#### **SSE Live Notifications**
+Connect to real-time file change events:
+```javascript
+// Connect to SSE stream
+const eventSource = new EventSource('http://localhost:8001/file-watcher/sse?watchers=project_watcher');
+
+eventSource.onmessage = function(event) {
+  const data = JSON.parse(event.data);
+  if (data.type === 'file_change') {
+    console.log(`File ${data.event.event_type}: ${data.event.filename}`);
+  }
+};
+```
+
+**Testing File Watcher:**
+```bash
+# Test file watcher tools
+python test_file_watcher.py
+
+# Open SSE test client in browser
+# file_watcher_test.html
+```
 ## 🔧 **Server Endpoints**
 
 | Endpoint | Method | Description |
@@ -195,6 +258,7 @@ Get comprehensive weather information for any location using the wttr.in API.
 | `/mcp` | POST/SSE | Main MCP protocol endpoint |
 | `/health` | GET | Server health check |
 | `/info` | GET | Server information and capabilities |
+| `/file-watcher/sse` | GET | SSE stream for file watcher events |
 | `/docs` | GET | Interactive API documentation |
 | `/` | GET | Welcome message |
 
@@ -559,3 +623,39 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ---
 
 **🎉 Ready to extend your MCP server?** The architecture is designed for easy expansion - add new tools, integrate APIs, and build powerful AI-assisted workflows!
+
+
+## 🤖 For AI Agents & Automated Systems
+
+### Project Summary
+This is a **production-ready MCP server** with:
+- ✅ **3 working tools**: Weather (no API key), Brave Search, Google Search
+- ✅ **Full MCP protocol**: Complete implementation with FastMCP
+- ✅ **Test clients**: Python and PowerShell clients included
+- ✅ **Docker ready**: Optimized containers with health checks
+- ✅ **Monitoring**: Built-in health and info endpoints
+
+### Key Files for Understanding
+1. **[`app/main.py`](app/main.py)** - Main application entry point
+2. **[`test_mcp_client.py`](test_mcp_client.py)** - Working MCP client example
+3. **[`app/config/config.py`](app/config/config.py)** - Configuration management
+4. **[`requirements.txt`](requirements.txt)** - Python dependencies
+5. **[`docker-compose.yml`](docker-compose.yml)** - Docker deployment
+
+### Instant Test Commands
+```bash
+# Start server
+python run.py
+
+# Test in another terminal
+python test_mcp_client.py
+
+# Expected: Weather data for San Francisco + tool discovery
+```
+
+### Code Patterns to Follow
+- **Tool registration**: Use `@mcp_server.tool()` decorator
+- **Async functions**: All tools are async with proper error handling
+- **Type hints**: Full typing for parameters and returns
+- **Logging**: Comprehensive logging at INFO/DEBUG levels
+- **Configuration**: Environment variables with `.env` support

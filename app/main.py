@@ -2,11 +2,18 @@ import contextlib
 import logging
 import os
 import sys
+import json
 from collections.abc import AsyncIterator
 from fastapi import FastAPI, Request # Request might be used by FastAPI internally or other parts
 from app.config.config import settings as app_settings_instance
 from app.tools.weather import get_weather
 from app.tools.web_search import search_brave, search_google
+# File watcher imports
+from app.tools.file_watcher import (
+    create_file_watcher, start_file_watcher, stop_file_watcher,
+    remove_file_watcher, list_file_watchers, get_file_watcher_status
+)
+from app.tools.file_watcher_sse import setup_watcher_sse_callback, create_sse_response
 from mcp.server.fastmcp import FastMCP
 from typing import List, Optional
 
@@ -64,6 +71,147 @@ if app_settings_instance.GOOGLE_API_KEY and app_settings_instance.GOOGLE_CSE_ID:
         logger.debug(f"Google search result: {result}")
         return str(result)
 
+# File Watcher Tools
+@mcp_server.tool()
+async def create_watcher(watcher_id: str, watch_path: str, 
+                        file_patterns: Optional[List[str]] = None,
+                        exclude_patterns: Optional[List[str]] = None,
+                        specific_files: Optional[List[str]] = None,
+                        recursive: bool = True,
+                        include_directories: bool = True,
+                        auto_start: bool = True) -> str:
+    """Create a new file watcher to monitor file system changes.
+    
+    Args:
+        watcher_id: Unique identifier for the watcher
+        watch_path: Path to watch (file or directory)
+        file_patterns: List of file patterns to match (e.g., ['*.txt', '*.py'])
+        exclude_patterns: List of patterns to exclude (e.g., ['*.tmp', '__pycache__'])
+        specific_files: List of specific files to watch (overrides patterns)
+        recursive: Whether to watch subdirectories recursively
+        include_directories: Whether to include directory events
+        auto_start: Whether to automatically start watching after creation
+    
+    Returns:
+        JSON string with watcher creation result
+    """
+    try:
+        logger.info(f"Creating file watcher '{watcher_id}' for path: {watch_path}")
+        
+        result = await create_file_watcher(
+            watcher_id=watcher_id,
+            watch_path=watch_path,
+            file_patterns=file_patterns,
+            exclude_patterns=exclude_patterns,
+            specific_files=specific_files,
+            recursive=recursive,
+            include_directories=include_directories
+        )
+        
+        # Setup SSE callback for real-time notifications
+        await setup_watcher_sse_callback(watcher_id)
+        
+        if auto_start:
+            await start_file_watcher(watcher_id)
+            result['auto_started'] = True
+        
+        return json.dumps({"status": "success", "message": f"Successfully created file watcher: {watcher_id}", "details": result})
+    
+    except Exception as e:
+        logger.error(f"Error creating file watcher '{watcher_id}': {e}")
+        return json.dumps({"status": "error", "message": f"Error creating file watcher: {str(e)}"})
+
+@mcp_server.tool()
+async def start_watcher_tool(watcher_id: str) -> str:
+    """Start a file watcher by ID.
+    
+    Args:
+        watcher_id: ID of the watcher to start
+    
+    Returns:
+        JSON string with start result
+    """
+    try:
+        result = await start_file_watcher(watcher_id)
+        logger.info(f"Started file watcher '{watcher_id}'")
+        return json.dumps({"status": "success", "message": f"Successfully started file watcher: {watcher_id}", "details": result})
+    except Exception as e:
+        logger.error(f"Error starting file watcher '{watcher_id}': {e}")
+        return json.dumps({"status": "error", "message": f"Error starting file watcher: {str(e)}"})
+
+@mcp_server.tool()
+async def stop_watcher_tool(watcher_id: str) -> str:
+    """Stop a file watcher by ID.
+    
+    Args:
+        watcher_id: ID of the watcher to stop
+    
+    Returns:
+        JSON string with stop result
+    """
+    try:
+        result = await stop_file_watcher(watcher_id)
+        logger.info(f"Stopped file watcher '{watcher_id}'")
+        return json.dumps({"status": "success", "message": f"Successfully stopped file watcher: {watcher_id}", "details": result})
+    except Exception as e:
+        logger.error(f"Error stopping file watcher '{watcher_id}': {e}")
+        return json.dumps({"status": "error", "message": f"Error stopping file watcher: {str(e)}"})
+
+@mcp_server.tool()
+async def remove_watcher_tool(watcher_id: str) -> str:
+    """Remove a file watcher by ID.
+    
+    Args:
+        watcher_id: ID of the watcher to remove
+    
+    Returns:
+        Result message
+    """
+    try:
+        success = await remove_file_watcher(watcher_id)
+        if success:
+            logger.info(f"Removed file watcher '{watcher_id}'")
+            return json.dumps({"status": "success", "message": f"Successfully removed file watcher '{watcher_id}'"})
+        else:
+            logger.warning(f"Attempted to remove non-existent file watcher '{watcher_id}'")
+            return json.dumps({"status": "error", "message": f"File watcher '{watcher_id}' not found"})
+    except Exception as e:
+        logger.error(f"Error removing file watcher '{watcher_id}': {e}")
+        return json.dumps({"status": "error", "message": f"Error removing file watcher: {str(e)}"})
+
+@mcp_server.tool()
+async def list_watchers_tool() -> str:
+    """List all file watchers and their status.
+    
+    Returns:
+        JSON string with all watchers information
+    """
+    try:
+        watchers = await list_file_watchers()
+        logger.info(f"Listed {len(watchers)} file watchers")
+        return json.dumps(watchers)
+    except Exception as e:
+        logger.error(f"Error listing file watchers: {e}")
+        return json.dumps({"status": "error", "message": f"Error listing file watchers: {str(e)}"})
+
+@mcp_server.tool()
+async def get_watcher_status_tool(watcher_id: str) -> str:
+    """Get detailed status of a specific file watcher.
+    
+    Args:
+        watcher_id: ID of the watcher to check
+    
+    Returns:
+        JSON string with watcher status
+    """
+    try:
+        status = await get_file_watcher_status(watcher_id)
+        logger.info(f"Retrieved status for file watcher '{watcher_id}'")
+        return json.dumps(status)
+    except Exception as e:
+        logger.error(f"Error getting status for file watcher '{watcher_id}': {e}")
+        return json.dumps({"status": "error", "message": f"Error getting watcher status: {str(e)}"})
+
 # FastAPI lifespan to manage FastMCP session manager
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -93,10 +241,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.info(f"  {k} = {v}")
         
         yield
+        
+        # Cleanup on shutdown
+        logger.info("Shutting down, cleaning up file watchers...")
+        try:
+            from app.tools.file_watcher import file_watcher_manager
+            await file_watcher_manager.cleanup_all()
+            logger.info("File watchers cleanup completed")
+        except Exception as e:
+            logger.error(f"Error during file watchers cleanup: {e}")
+            
     logger.info("FastMCP session manager stopped")
 
 # Use FastMCP's streamable HTTP app as the primary application
 app = mcp_server.streamable_http_app()
+
+# Add CORS middleware for browser compatibility
+from starlette.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify exact origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # FastMCP apps are Starlette apps, so we need to add routes differently
 from starlette.routing import Route
@@ -119,16 +287,36 @@ async def server_info(request):
         "endpoints": {
             "health": "/health",
             "info": "/info",
-            "ping": "/ping"
+            "ping": "/ping",
+            "file_watcher_sse": "/file-watcher/sse"
         },
-        "tools": ["weather", "brave_search_tool", "google_search_tool"]
+        "tools": ["weather", "brave_search_tool", "google_search_tool", 
+                 "create_watcher", "start_watcher_tool", "stop_watcher_tool",
+                 "remove_watcher_tool", "list_watchers_tool", "get_watcher_status_tool"]
     })
+
+async def file_watcher_sse_endpoint(request):
+    """SSE endpoint for file watcher events"""
+    import uuid
+    from fastapi import Query
+    
+    # Generate unique client ID
+    client_id = str(uuid.uuid4())
+    
+    # Get watcher IDs from query parameters (comma-separated)
+    watcher_ids_param = request.query_params.get('watchers', '')
+    watcher_ids = [w.strip() for w in watcher_ids_param.split(',') if w.strip()] if watcher_ids_param else None
+    
+    logger.info(f"Starting SSE stream for client '{client_id}' with watchers: {watcher_ids}")
+    
+    return create_sse_response(client_id, watcher_ids)
 
 # Add our custom routes to the FastMCP app
 app.routes.extend([
     Route("/health", health_check, methods=["GET", "HEAD"]),
     Route("/ping", ping, methods=["GET", "HEAD"]),
-    Route("/info", server_info, methods=["GET"])
+    Route("/info", server_info, methods=["GET"]),
+    Route("/file-watcher/sse", file_watcher_sse_endpoint, methods=["GET"])
 ])
 
 if __name__ == "__main__":

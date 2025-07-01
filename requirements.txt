@@ -3,6 +3,8 @@ uvicorn
 requests
 python-dotenv
 mcp[cli]
+watchdog>=3.0.0
+asyncio-mqtt>=0.16.0
 
 # For specific services (add as needed)
 # google-api-python-client
